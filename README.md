@@ -16,6 +16,7 @@ Visualize a mix in 3D, see where different elements overlap in the frequency spe
 * View the frequency spectrum and how your sounds may overlap
 ## Sender
 <img width="646" height="515" alt="Screen Shot 2026-01-11 at 2 44 51 PM" src="https://github.com/user-attachments/assets/ab265574-3a91-4d2a-8b12-f169bf5d417c" />
+
 * Choose track color, a random hue is selected for each new instance loaded
 * High Res mode, off: 24 bands (fast), on: 48 bands (accurate)
 
