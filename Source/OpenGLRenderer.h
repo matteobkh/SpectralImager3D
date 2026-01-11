@@ -78,7 +78,7 @@ public:
     void setViewMode(ViewMode m) { viewMode = m; repaint(); }
     ViewMode getViewMode() const { return viewMode; }
     
-    void resetView() { rotX = 25.0f; rotY = -35.0f; zoom = 2.8f; }
+    void resetView() { rotX = 25.0f; rotY = -35.0f; zoom = 2.0f; }
     
     void newOpenGLContextCreated() override { buildShader(); }
     
@@ -196,7 +196,7 @@ private:
         {
             float asp = w / h, fov = 50.0f, n = 0.1f, f = 50.0f;
             float t = std::tan(juce::degreesToRadians(fov) / 2.0f);
-            m[0] = 1.0f / (asp * t);
+            m[0] = -1.0f / (asp * t); // Negative for right-handed coord system
             m[5] = 1.0f / t;
             m[10] = -(f + n) / (f - n);
             m[11] = -1.0f;

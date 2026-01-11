@@ -14,6 +14,14 @@ SpectralImagerAudioProcessor::SpectralImagerAudioProcessor()
       apvts(*this, nullptr, "Params", createParams())
 {
     instId = reinterpret_cast<uint64_t>(this);
+
+    // Randomize Hue if this is a fresh instance (not yet loaded from state)
+    auto* hueParam = apvts.getParameter("hue");
+    float randomHue = juce::Random::getSystemRandom().nextFloat();
+    hueParam->setValueNotifyingHost(randomHue);
+    // Set the internal color variable immediately
+    color = juce::Colour::fromHSV(randomHue, 0.8f, 1.0f, 1.0f);
+
     slot = sharedData->registerSender(instId);
     if (slot >= 0) sharedData->getTrack(slot).setColor(color);
     
@@ -46,8 +54,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout SpectralImagerAudioProcessor
     p.push_back(std::make_unique<juce::AudioParameterFloat>(
         "range", "Range (dB)", 
         juce::NormalisableRange<float>(12.0f, 60.0f, 1.0f), 
-        36.0f));
-    p.push_back(std::make_unique<juce::AudioParameterBool>("highres", "High Resolution", false));
+        60.0f));
+    p.push_back(std::make_unique<juce::AudioParameterBool>("highres", "High Resolution", true));
     return { p.begin(), p.end() };
 }
 
