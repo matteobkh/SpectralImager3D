@@ -3,7 +3,7 @@ Visualize a mix in 3D, see where different elements overlap in the frequency spe
 ## Receiver: viewing modes
 **3D Perspective view**
 
-<img width="646" height="672" alt="Screen Shot 2026-01-11 at 2 44 01 PM" src="https://github.com/user-attachments/assets/375b49cf-db16-4dae-81de-0b27de06fa6c" />
+<img width="646" height="672" alt="Screen Shot 2026-01-11 at 2 43 54 PM" src="https://github.com/user-attachments/assets/ca72a294-839e-41d3-8ea0-279883782cab" />
 
 * Mouse wheel to zoom in and out
 * Click and drag to move the camera
