@@ -133,7 +133,7 @@ SpectralImagerAudioProcessorEditor::SpectralImagerAudioProcessorEditor(SpectralI
     : AudioProcessorEditor(&p), proc(p)
 {
     // Set size first
-    setSize(750, 520);
+    setSize(600, 750);
     setResizable(true, true);
     setResizeLimits(600, 450, 1400, 1000);
     

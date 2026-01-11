@@ -51,10 +51,20 @@ class Spectral3DRenderer : public juce::Component,
                            private juce::Timer
 {
 public:
+// --- Unified Camera Constants ---
+    static constexpr float defaultRotX = 40.0f;
+    static constexpr float defaultRotY = 180.0f;
+    static constexpr float defaultZoom = 3.8f;
+
     explicit Spectral3DRenderer(juce::SharedResourcePointer<SharedDataManager>& data,
                                 std::atomic<float>* rangeParam = nullptr)
         : sharedData(data), rangePtr(rangeParam)
     {
+        // Use unified constants for initialization
+        rotX = defaultRotX;
+        rotY = defaultRotY;
+        zoom = defaultZoom;
+
         ctx.setRenderer(this);
         ctx.setContinuousRepainting(false);
         ctx.setComponentPaintingEnabled(true);
@@ -77,8 +87,15 @@ public:
     
     void setViewMode(ViewMode m) { viewMode = m; repaint(); }
     ViewMode getViewMode() const { return viewMode; }
-    
-    void resetView() { rotX = 25.0f; rotY = -35.0f; zoom = 2.0f; }
+
+    void resetView() { 
+        rotX = defaultRotX; 
+        rotY = defaultRotY; 
+        zoom = defaultZoom;
+        // Ensure the next mouse drag starts from these exact coordinates
+        // This prevents the camera from "jumping" back to a previous state
+        repaint();
+    }
     
     void newOpenGLContextCreated() override { buildShader(); }
     
