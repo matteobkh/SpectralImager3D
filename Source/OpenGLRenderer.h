@@ -395,8 +395,9 @@ private:
                     
                     // Skip if no movement
                     if (std::abs(oldX - newX) < 0.001f) continue;
-                    
-                    float tracerAlpha = alpha * (1.0f - static_cast<float>(age) / static_cast<float>(BandHistory::kHistorySize)) * 0.3f;
+                   
+                    // alpha * decay factor * base intensity
+                    float tracerAlpha = alpha * (1.0f - static_cast<float>(age) / static_cast<float>(BandHistory::kHistorySize)) * 0.7f;
                     
                     // Draw tracer line connecting old and new positions
                     addLine(oldX, avgY, z, newX, avgY, z, cr, cg, cb, tracerAlpha);
