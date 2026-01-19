@@ -17,119 +17,127 @@ if(APPLE)
 endif()
 
 # =============================================================================
-# JUCE CONFIGURATION - EDIT THIS PATH TO MATCH YOUR JUCE LOCATION
+# JUCE CONFIGURATION
 # =============================================================================
-# Option 1: JUCE is a sibling folder (recommended setup)
-# Your folder structure should be:
-#   ~/AudioPlugins/JUCE/
-#   ~/AudioPlugins/SpectralImager3D/  (this project)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/JUCE ${CMAKE_BINARY_DIR}/JUCE_build)
 
-# Option 2: If your JUCE is elsewhere, comment out Option 1 and use this instead:
-# add_subdirectory(/Users/YOUR_USERNAME/path/to/JUCE ${CMAKE_BINARY_DIR}/JUCE_build)
-# =============================================================================
+# Common Source Files
+set(SourceFiles
+    Source/PluginProcessor.cpp
+    Source/PluginProcessor.h
+    Source/PluginEditor.cpp
+    Source/PluginEditor.h
+    Source/SharedDataManager.h
+    Source/SpectralAnalyzer.h
+    Source/OpenGLRenderer.h
+)
 
-# Plugin target
+# ==============================================================================
+# Target 1: Standard Stereo Sender/Receiver
+# ==============================================================================
 juce_add_plugin(SpectralImager3D
-    # Plugin info
-    COMPANY_NAME "AudioDev"
-    BUNDLE_ID "com.audiodev.spectralimager3d"
-    PLUGIN_MANUFACTURER_CODE Audx
+    COMPANY_NAME "Arcane Machines"
+    BUNDLE_ID "com.arcanemachines.spectralimager3d"
+    PLUGIN_MANUFACTURER_CODE Arcn
     PLUGIN_CODE SI3D
-    
-    # Formats
     FORMATS VST3 AU Standalone
-    
-    # Plugin type
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
-    
-    # Editor
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    
-    # Plugin name
     PLUGIN_NAME "SpectralImager3D"
     PRODUCT_NAME "SpectralImager3D"
-    
-    # Description
     DESCRIPTION "3D Multi-Instance Stereo/Spectral Imager"
-    
-    # VST3 category
     VST3_CATEGORIES Analyzer Tools
-    
-    # AU type
     AU_MAIN_TYPE kAudioUnitType_Effect
 )
 
-# Generate JUCE header
 juce_generate_juce_header(SpectralImager3D)
-
-# Source files
-target_sources(SpectralImager3D
-    PRIVATE
-        Source/PluginProcessor.cpp
-        Source/PluginProcessor.h
-        Source/PluginEditor.cpp
-        Source/PluginEditor.h
-        Source/SharedDataManager.h
-        Source/SpectralAnalyzer.h
-        Source/OpenGLRenderer.h
+target_sources(SpectralImager3D PRIVATE ${SourceFiles})
+target_compile_definitions(SpectralImager3D PUBLIC 
+    JUCE_WEB_BROWSER=0 
+    JUCE_USE_CURL=0 
+    JUCE_VST3_CAN_REPLACE_VST2=0
+)
+target_link_libraries(SpectralImager3D PRIVATE
+    juce::juce_audio_basics
+    juce::juce_audio_devices
+    juce::juce_audio_formats
+    juce::juce_audio_plugin_client
+    juce::juce_audio_processors
+    juce::juce_audio_utils
+    juce::juce_core
+    juce::juce_data_structures
+    juce::juce_dsp
+    juce::juce_events
+    juce::juce_graphics
+    juce::juce_gui_basics
+    juce::juce_gui_extra
+    juce::juce_opengl
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_lto_flags
+    juce::juce_recommended_warning_flags
 )
 
-# Preprocessor definitions
-target_compile_definitions(SpectralImager3D
-    PUBLIC
-        JUCE_WEB_BROWSER=0
-        JUCE_USE_CURL=0
-        JUCE_VST3_CAN_REPLACE_VST2=0
+# ==============================================================================
+# Target 2: 16-Channel Unified Receiver
+# ==============================================================================
+juce_add_plugin(SpectralImager3D_16Ch
+    COMPANY_NAME "Arcane Machines"
+    BUNDLE_ID "com.arcanemachines.spectralimager3d16ch"
+    PLUGIN_MANUFACTURER_CODE Arcn
+    PLUGIN_CODE SI16
+    FORMATS VST3 AU Standalone
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+    IS_MIDI_EFFECT FALSE
+    EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+    PLUGIN_NAME "SpectralImager3D 16Ch"
+    PRODUCT_NAME "SpectralImager3D 16Ch"
+    DESCRIPTION "16-Channel 3D Spectral Imager"
+    VST3_CATEGORIES Analyzer Tools
+    AU_MAIN_TYPE kAudioUnitType_Effect
 )
 
-# Link JUCE modules
-target_link_libraries(SpectralImager3D
-    PRIVATE
-        juce::juce_audio_basics
-        juce::juce_audio_devices
-        juce::juce_audio_formats
-        juce::juce_audio_plugin_client
-        juce::juce_audio_processors
-        juce::juce_audio_utils
-        juce::juce_core
-        juce::juce_data_structures
-        juce::juce_dsp
-        juce::juce_events
-        juce::juce_graphics
-        juce::juce_gui_basics
-        juce::juce_gui_extra
-        juce::juce_opengl
-    PUBLIC
-        juce::juce_recommended_config_flags
-        juce::juce_recommended_lto_flags
-        juce::juce_recommended_warning_flags
+juce_generate_juce_header(SpectralImager3D_16Ch)
+target_sources(SpectralImager3D_16Ch PRIVATE ${SourceFiles})
+target_compile_definitions(SpectralImager3D_16Ch PUBLIC 
+    JUCE_WEB_BROWSER=0 
+    JUCE_USE_CURL=0 
+    JUCE_VST3_CAN_REPLACE_VST2=0
+    SI3D_16CH_UNIFIED=1
+)
+target_link_libraries(SpectralImager3D_16Ch PRIVATE
+    juce::juce_audio_basics
+    juce::juce_audio_devices
+    juce::juce_audio_formats
+    juce::juce_audio_plugin_client
+    juce::juce_audio_processors
+    juce::juce_audio_utils
+    juce::juce_core
+    juce::juce_data_structures
+    juce::juce_dsp
+    juce::juce_events
+    juce::juce_graphics
+    juce::juce_gui_basics
+    juce::juce_gui_extra
+    juce::juce_opengl
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_lto_flags
+    juce::juce_recommended_warning_flags
 )
 
 # Platform-specific settings
 if(APPLE)
-    # macOS/iOS frameworks
-    target_link_libraries(SpectralImager3D
-        PRIVATE
-            "-framework OpenGL"
-            "-framework CoreAudio"
-            "-framework CoreMIDI"
-            "-framework Accelerate"
-    )
+    target_link_libraries(SpectralImager3D PRIVATE "-framework OpenGL" "-framework CoreAudio" "-framework CoreMIDI" "-framework Accelerate")
+    target_link_libraries(SpectralImager3D_16Ch PRIVATE "-framework OpenGL" "-framework CoreAudio" "-framework CoreMIDI" "-framework Accelerate")
 elseif(WIN32)
-    # Windows libraries
-    target_link_libraries(SpectralImager3D
-        PRIVATE
-            opengl32
-    )
+    target_link_libraries(SpectralImager3D PRIVATE opengl32)
+    target_link_libraries(SpectralImager3D_16Ch PRIVATE opengl32)
 elseif(UNIX)
-    # Linux packages
     find_package(OpenGL REQUIRED)
-    target_link_libraries(SpectralImager3D
-        PRIVATE
-            OpenGL::GL
-    )
+    target_link_libraries(SpectralImager3D PRIVATE OpenGL::GL)
+    target_link_libraries(SpectralImager3D_16Ch PRIVATE OpenGL::GL)
 endif()

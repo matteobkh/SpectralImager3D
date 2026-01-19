@@ -49,11 +49,23 @@ public:
     juce::Colour getTrackColor() const { return color; }
     void setTrackColor(juce::Colour c);
     float getRange() const { return range; }
-    void setRange(float r) { range = juce::jlimit(12.0f, 60.0f, r); }
+    void setRange(float r) { range = juce::jlimit(12.0f, 90.0f, r); }
     int getNumBands() const { return numBands; }
-    void setNumBands(int n) { numBands = juce::jlimit(12, 64, n); analyzer.setNumBands(numBands); }
+    void setNumBands(int n) { numBands = juce::jlimit(12, 64, n); 
+#ifdef SI3D_16CH_UNIFIED
+        for(auto& a : analyzers) a.setNumBands(numBands);
+#else
+        analyzer.setNumBands(numBands); 
+#endif
+    }
     
-    juce::SharedResourcePointer<SharedDataManager>& getSharedData() { return sharedData; }
+    ITrackDataProvider& getSharedData() { 
+#ifdef SI3D_16CH_UNIFIED
+        return sharedData;
+#else
+        return *sharedData; 
+#endif
+    }
     int getSlot() const { return slot; }
     
     juce::AudioProcessorValueTreeState apvts;
@@ -61,11 +73,17 @@ public:
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParams();
     
+#ifdef SI3D_16CH_UNIFIED
+    LocalDataManager sharedData;
+    std::array<SpectralAnalyzer, 8> analyzers;
+#else
     juce::SharedResourcePointer<SharedDataManager> sharedData;
     SpectralAnalyzer analyzer;
+#endif
+
     PluginMode mode = PluginMode::Sender;
     juce::Colour color{ 0xFF00FFFF };
-    float range = 36.0f;
+    float range = 90.0f;
     int numBands = 24;
     int slot = -1;
     uint64_t instId = 0;

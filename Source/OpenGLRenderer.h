@@ -56,9 +56,10 @@ public:
     static constexpr float defaultRotY = 180.0f;
     static constexpr float defaultZoom = 3.8f;
 
-    explicit Spectral3DRenderer(juce::SharedResourcePointer<SharedDataManager>& data,
-                                std::atomic<float>* rangeParam = nullptr)
-        : sharedData(data), rangePtr(rangeParam)
+    explicit Spectral3DRenderer(ITrackDataProvider& data,
+                                std::atomic<float>* rangeParam = nullptr,
+                                bool autoCleanupSender = true)
+        : sharedData(data), rangePtr(rangeParam), autoCleanup(autoCleanupSender)
     {
         // Use unified constants for initialization
         rotX = defaultRotX;
@@ -148,9 +149,120 @@ public:
         if (triVbo != 0) { juce::gl::glDeleteBuffers(1, &triVbo); triVbo = 0; }
     }
     
-    void paint(juce::Graphics&) override
+    void paint(juce::Graphics& g) override
     {
-        // Labels removed
+        // Draw 3D Labels
+        g.setColour(juce::Colour(Colors::text));
+        g.setFont(12.0f);
+        
+        auto project = [this](float x, float y, float z) -> juce::Point<float> {
+            auto proj = makeProj(static_cast<float>(getWidth()), static_cast<float>(getHeight()));
+            auto view = makeView();
+            
+            // Model (Identity) -> View -> Proj
+            // Manual matrix multiplication: v' = P * V * v
+            float v[4] = {x, y, z, 1.0f};
+            float eye[4] = {0,0,0,0};
+            
+            // View transform
+            for(int r=0; r<4; ++r) 
+                for(int c=0; c<4; ++c) 
+                    eye[r] += view[static_cast<size_t>(c*4 + r)] * v[c];
+            
+            // Proj transform
+            float clip[4] = {0,0,0,0};
+            for(int r=0; r<4; ++r) 
+                for(int c=0; c<4; ++c) 
+                    clip[r] += proj[static_cast<size_t>(c*4 + r)] * eye[c];
+            
+            if (clip[3] == 0.0f) return { -1000.0f, -1000.0f };
+            
+            // NDC
+            float ndcX = clip[0] / clip[3];
+            float ndcY = clip[1] / clip[3];
+            
+            // Screen
+            return {
+                (ndcX + 1.0f) * 0.5f * static_cast<float>(getWidth()),
+                (1.0f - ndcY) * 0.5f * static_cast<float>(getHeight()) // Flip Y for JUCE
+            };
+        };
+        
+        auto drawLabel = [&](const juce::String& text, float x, float y, float z, 
+                             juce::Justification just = juce::Justification::centred) {
+            auto pt = project(x, y, z);
+            if (pt.x >= -50 && pt.x < getWidth() + 50 && pt.y >= -20 && pt.y < getHeight() + 20)
+                g.drawText(text, static_cast<int>(pt.x) - 25, static_cast<int>(pt.y) - 10, 50, 20, just);
+        };
+        
+        auto freqToZ = [](float f) {
+            return -1.0f + 2.0f * (std::log10(f) - std::log10(20.0f)) / (std::log10(20000.0f) - std::log10(20.0f));
+        };
+
+        if (viewMode == ViewMode::Perspective3D)
+        {
+            drawLabel("L", -1.2f, -1.0f, -1.2f);
+            drawLabel("R", 1.2f, -1.0f, -1.2f);
+            drawLabel("20Hz", -1.3f, -1.0f, freqToZ(20.0f));
+            drawLabel("100Hz", -1.3f, -1.0f, freqToZ(100.0f));
+            drawLabel("500Hz", -1.3f, -1.0f, freqToZ(500.0f));
+            drawLabel("1k", -1.3f, -1.0f, freqToZ(1000.0f));
+            drawLabel("5k", -1.3f, -1.0f, freqToZ(5000.0f));
+            drawLabel("10k", -1.3f, -1.0f, freqToZ(10000.0f));
+            drawLabel("20k", -1.3f, -1.0f, freqToZ(20000.0f));
+        }
+        else if (viewMode == ViewMode::TopFlat)
+        {
+            // Frequencies along Y (Z in model)
+            // L/R along X (Model X)
+            // Z = -1.2 (left side of screen) or Z = 1.2 (right)?
+            // Wait, in Top view:
+            // Screen Y = Model Z (Freqs)
+            // Screen X = Model X (Stereo)
+            
+            // Freqs on left side (Model X = -1.2)
+            drawLabel("20Hz", -1.2f, -1.0f, freqToZ(20.0f), juce::Justification::right);
+            drawLabel("100", -1.2f, -1.0f, freqToZ(100.0f), juce::Justification::right);
+            drawLabel("1k", -1.2f, -1.0f, freqToZ(1000.0f), juce::Justification::right);
+            drawLabel("5k", -1.2f, -1.0f, freqToZ(5000.0f), juce::Justification::right);
+            drawLabel("20k", -1.2f, -1.0f, freqToZ(20000.0f), juce::Justification::right);
+            
+            // Stereo on bottom (Model Z = -1.2)
+            drawLabel("L", -1.0f, -1.0f, -1.2f);
+            drawLabel("C", 0.0f, -1.0f, -1.2f);
+            drawLabel("R", 1.0f, -1.0f, -1.2f);
+        }
+        else if (viewMode == ViewMode::SideFlat)
+        {
+            // Side View:
+            // Screen X = Model Z (Freqs)
+            // Screen Y = Model Y (Level)
+            
+            // Freqs along bottom (Model Y = -1.2)
+            drawLabel("20", -1.0f, -1.2f, freqToZ(20.0f));
+            drawLabel("100", -1.0f, -1.2f, freqToZ(100.0f));
+            drawLabel("1k", -1.0f, -1.2f, freqToZ(1000.0f));
+            drawLabel("5k", -1.0f, -1.2f, freqToZ(5000.0f));
+            drawLabel("20k", -1.0f, -1.2f, freqToZ(20000.0f));
+            
+            // dB along right side (Model Z = 1.2?) No, Model Z is X. 
+            // Screen Right edge is View X = 1.0 -> Model Z = 1.0
+            // But dB labels are for Y-axis. Place them at Model Z = 1.1?
+            
+             float rVal = rangePtr != nullptr ? rangePtr->load() : 90.0f;
+             if (rVal < 12.0f) rVal = 12.0f;
+             float step = (rVal > 60.0f) ? 12.0f : 6.0f;
+             
+             for (float db = 0.0f; db >= -rVal; db -= step)
+             {
+                 // Convert dB to Y (-1 to 1)
+                 // Y = (norm * 2) - 1
+                 float norm = (db + rVal) / rVal;
+                 float y = norm * 2.0f - 1.0f;
+                 
+                 drawLabel(juce::String(static_cast<int>(db)), -1.0f, y, 1.15f, juce::Justification::left);
+             }
+        }
     }
     
     void mouseDown(const juce::MouseEvent& e) override { lastMouse = e.position; }
@@ -162,19 +274,23 @@ public:
         rotY += d.x * 0.4f;
         rotX = juce::jlimit(-89.0f, 89.0f, rotX + d.y * 0.4f);
         lastMouse = e.position;
+        repaint(); // Force 2D overlay update
     }
     
     void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& wh) override
     {
         if (viewMode != ViewMode::Perspective3D) return;
         zoom = juce::jlimit(1.5f, 6.0f, zoom - wh.deltaY * 0.3f);
+        repaint(); // Force 2D overlay update
     }
     
 private:
     void timerCallback() override
     {
-        sharedData->cleanupStale(1000);
+        // Increased timeout to 4000ms to prevent flickering when playback pauses
+        if (autoCleanup) sharedData.cleanupStale(4000);
         ctx.triggerRepaint();
+        repaint(); // Sync 2D overlay with 3D render
     }
     
     void buildShader()
@@ -367,7 +483,7 @@ private:
         
         for (size_t t = 0; t < kMaxTracks; ++t)
         {
-            const auto& track = sharedData->getTrack(static_cast<int>(t));
+            const auto& track = sharedData.getTrack(static_cast<int>(t));
             if (!track.isActive.load(std::memory_order_acquire)) continue;
             
             auto col = track.getColor();
@@ -403,6 +519,22 @@ private:
                 hist.push(centerX);
                 
                 float alpha = juce::jlimit(0.5f, 1.0f, avgY * 0.5f + 0.7f);
+                
+                // New Opacity Logic: 
+                // 0 to -60dB -> Full opacity based on alpha calc above
+                // -60 to -90dB -> Fade to 0
+                // We need to recover dB from avgY? No, use the raw level.
+                // Re-calculate dB for opacity check using max of L/R
+                float maxLevel = std::max(left, right);
+                float db = juce::Decibels::gainToDecibels(maxLevel, -120.0f);
+                
+                if (db < -50.0f)
+                {
+                    float fade = juce::jmap(db, -90.0f, -50.0f, 0.0f, 1.0f);
+                    alpha *= std::max(0.0f, fade);
+                }
+                
+                if (alpha < 0.01f) continue;
                 
                 // Draw tracer (fading history trail)
                 for (int age = BandHistory::kHistorySize - 1; age >= 1; --age)
@@ -541,7 +673,7 @@ private:
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
     
-    juce::SharedResourcePointer<SharedDataManager>& sharedData;
+    ITrackDataProvider& sharedData;
     std::atomic<float>* rangePtr = nullptr;
     juce::OpenGLContext ctx;
     
@@ -560,4 +692,5 @@ private:
     ViewMode viewMode = ViewMode::Perspective3D;
     float rotX = 25.0f, rotY = -35.0f, zoom = 2.8f;
     juce::Point<float> lastMouse;
+    bool autoCleanup = true;
 };

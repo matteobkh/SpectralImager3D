@@ -29,12 +29,12 @@ private:
 class TrackList : public juce::Component, private juce::Timer
 {
 public:
-    explicit TrackList(juce::SharedResourcePointer<SharedDataManager>& d);
+    explicit TrackList(ITrackDataProvider& d);
     ~TrackList() override;
     void paint(juce::Graphics&) override;
 private:
     void timerCallback() override;
-    juce::SharedResourcePointer<SharedDataManager>& data;
+    ITrackDataProvider& data;
     int count = 0;
 };
 

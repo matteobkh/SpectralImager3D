@@ -93,7 +93,7 @@ void HSBColorPicker::update()
 }
 
 //==============================================================================
-TrackList::TrackList(juce::SharedResourcePointer<SharedDataManager>& d) : data(d)
+TrackList::TrackList(ITrackDataProvider& d) : data(d)
 {
     startTimerHz(10);
 }
@@ -107,15 +107,20 @@ void TrackList::paint(juce::Graphics& g)
     
     g.setColour(UI::text);
     g.setFont(juce::FontOptions(12.0f));
-    g.drawText("Tracks: " + juce::String(count) + "/" + juce::String(static_cast<int>(kMaxTracks)),
-               10, 0, 100, getHeight(), juce::Justification::centredLeft);
+    
+    juce::String text = "Tracks: " + juce::String(count);
+#ifndef SI3D_16CH_UNIFIED
+    text += "/" + juce::String(static_cast<int>(kMaxTracks));
+#endif
+
+    g.drawText(text, 10, 0, 100, getHeight(), juce::Justification::centredLeft);
     
     int x = 115;
     for (size_t i = 0; i < kMaxTracks && x < getWidth() - 20; ++i)
     {
-        if (data->getTrack(static_cast<int>(i)).isActive.load())
+        if (data.getTrack(static_cast<int>(i)).isActive.load())
         {
-            g.setColour(data->getTrack(static_cast<int>(i)).getColor());
+            g.setColour(data.getTrack(static_cast<int>(i)).getColor());
             g.fillEllipse(static_cast<float>(x), static_cast<float>(getHeight()/2 - 6), 12.0f, 12.0f);
             x += 16;
         }
@@ -124,7 +129,7 @@ void TrackList::paint(juce::Graphics& g)
 
 void TrackList::timerCallback()
 {
-    int n = data->getActiveCount();
+    int n = data.getActiveCount();
     if (n != count) { count = n; repaint(); }
 }
 
@@ -133,7 +138,7 @@ SpectralImagerAudioProcessorEditor::SpectralImagerAudioProcessorEditor(SpectralI
     : AudioProcessorEditor(&p), proc(p)
 {
     // Set size first
-    setSize(600, 750);
+    setSize(640, 750);
     setResizable(true, true);
     setResizeLimits(600, 450, 1400, 1000);
     
@@ -144,6 +149,7 @@ SpectralImagerAudioProcessorEditor::SpectralImagerAudioProcessorEditor(SpectralI
     addAndMakeVisible(title);
     
     // Mode selector
+#ifndef SI3D_16CH_UNIFIED
     modeBox.addItem("Sender", 1);
     modeBox.addItem("Receiver", 2);
     modeBox.setColour(juce::ComboBox::backgroundColourId, UI::panel);
@@ -164,9 +170,9 @@ SpectralImagerAudioProcessorEditor::SpectralImagerAudioProcessorEditor(SpectralI
     // Color picker for sender
     colorPicker.setColor(proc.getTrackColor());
     colorPicker.onChanged = [this](float h, float s, float b) {
-        proc.apvts.getParameter("hue")->setValueNotifyingHost(h);
-        proc.apvts.getParameter("sat")->setValueNotifyingHost(s);
-        proc.apvts.getParameter("bri")->setValueNotifyingHost(b);
+        if (auto* param = proc.apvts.getParameter("hue")) param->setValueNotifyingHost(h);
+        if (auto* param = proc.apvts.getParameter("sat")) param->setValueNotifyingHost(s);
+        if (auto* param = proc.apvts.getParameter("bri")) param->setValueNotifyingHost(b);
     };
     addAndMakeVisible(colorPicker);
     
@@ -174,6 +180,7 @@ SpectralImagerAudioProcessorEditor::SpectralImagerAudioProcessorEditor(SpectralI
     statusLbl.setFont(juce::FontOptions(12.0f));
     statusLbl.setColour(juce::Label::textColourId, UI::textDim);
     addAndMakeVisible(statusLbl);
+#endif
     
     // View mode selector (for receiver)
     viewBox.addItem("3D Perspective", 1);
@@ -228,12 +235,29 @@ SpectralImagerAudioProcessorEditor::SpectralImagerAudioProcessorEditor(SpectralI
         int newBands = highRes ? 48 : 24;
         proc.setNumBands(newBands);
     };
+#ifndef SI3D_16CH_UNIFIED
     addAndMakeVisible(highResBtn);
+#else
+    // In unified mode, this button is hidden/unused, but we can keep the logic or just hide it.
+    // Since createParams always adds 'highres' (it's not #ifdef'd out in PluginProcessor.cpp), this is safe-ish,
+    // but the button shouldn't be visible.
+#endif
     
     highResAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         proc.apvts, "highres", highResBtn);
     
     // Create receiver components if needed
+    // In Unified 16CH mode, we are ALWAYS receiver
+#ifdef SI3D_16CH_UNIFIED
+    {
+        renderer = std::make_unique<Spectral3DRenderer>(proc.getSharedData(), 
+            proc.apvts.getRawParameterValue("range"));
+        addChildComponent(*renderer);
+        
+        trackList = std::make_unique<TrackList>(proc.getSharedData());
+        addChildComponent(*trackList);
+    }
+#else
     if (proc.getMode() == PluginMode::Receiver)
     {
         renderer = std::make_unique<Spectral3DRenderer>(proc.getSharedData(), 
@@ -243,6 +267,7 @@ SpectralImagerAudioProcessorEditor::SpectralImagerAudioProcessorEditor(SpectralI
         trackList = std::make_unique<TrackList>(proc.getSharedData());
         addChildComponent(*trackList);
     }
+#endif
     
     uiInitialized = true;
     updateUI();
@@ -275,12 +300,17 @@ void SpectralImagerAudioProcessorEditor::resized()
     auto header = b.removeFromTop(50);
     title.setBounds(header.removeFromLeft(180).reduced(10, 10));
     header.removeFromLeft(20);
+#ifndef SI3D_16CH_UNIFIED
     modeBox.setBounds(header.removeFromLeft(120).reduced(5, 12));
+#endif
     
     b.reduce(10, 10);
     
-    bool isSender = proc.getMode() == PluginMode::Sender;
-    
+    bool isSender = false;
+#ifndef SI3D_16CH_UNIFIED
+    isSender = proc.getMode() == PluginMode::Sender;
+#endif
+
     if (isSender)
     {
         // Sender layout
@@ -319,6 +349,7 @@ void SpectralImagerAudioProcessorEditor::resized()
 
 void SpectralImagerAudioProcessorEditor::timerCallback()
 {
+#ifndef SI3D_16CH_UNIFIED
     // Update status for sender mode
     if (proc.getMode() == PluginMode::Sender)
     {
@@ -338,13 +369,18 @@ void SpectralImagerAudioProcessorEditor::timerCallback()
         modeBox.setSelectedId(expectedId, juce::dontSendNotification);
         updateUI();
     }
+#endif
 }
 
 void SpectralImagerAudioProcessorEditor::updateUI()
 {
     if (!uiInitialized) return;
     
+#ifdef SI3D_16CH_UNIFIED
+    bool isSender = false;
+#else
     bool isSender = proc.getMode() == PluginMode::Sender;
+#endif
     
     // Show/hide sender UI
     colorPicker.setVisible(isSender);
@@ -357,7 +393,7 @@ void SpectralImagerAudioProcessorEditor::updateUI()
         if (renderer == nullptr)
         {
             renderer = std::make_unique<Spectral3DRenderer>(proc.getSharedData(),
-                proc.apvts.getRawParameterValue("range"));
+                proc.apvts.getRawParameterValue("range"), false);
             addAndMakeVisible(*renderer);
         }
         if (trackList == nullptr)
