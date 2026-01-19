@@ -2,7 +2,7 @@
 Visualize a mix in 3D, see where different elements overlap in the frequency spectrum and the stereo image at the same time. Use all the space in your mix and keep different sounds clear separate. Apply an instance in "Sender" mode to any track and see it represented in the 3D analyzer on a "Receiver" instance anywhere in your project.
 
 ## Multichannel and stereo versions
-The plugin can be deployed as a 16 in / 2 out version created for DAWs like Reaper that have multichannel capabilites, or as a basic stereo plugin for DAWs like Ableton without them. To compensate it has sender and receiver modes for sending up to 16 distinct stereo tracks to the visualizer.
+The plugin can be deployed as a 16 in / 2 out version created for DAWs like Reaper that have multichannel capabilites, or as a basic stereo plugin for DAWs like Ableton that only do stereo. To compensate it has sender and receiver modes for sending up to 16 distinct stereo tracks to the visualizer.
 
 ### Using the 16ch version
 In a DAW that supports multi-channel audio (like Reaper), route stereo tracks to a multi-channel bus using inputs 1&2, 2&3, ..., up to 15&16 for a total of 8 stereo tracks. Load "SpectralImager3D 16Ch" on the bus.
